@@ -9,7 +9,7 @@ SharePoint Online (SPO) の予定表と連動して、Teams 会議を自動で�
 - **アジェンダ管理**: 議題ごとの所要時間と担当者を可視化
 - **司会台本エディタ**: オープニング / 遷移 / 警告 / クロージングを編集
 
-**Microsoft Graph (SPO/Exchange 予定表)**、**Azure Speech (Neural TTS)**、**ACS Call Automation (Teams 会議参加・発話)** すべて結線済み。資格情報が `.env.local` にあれば実機接続、未設定時は自動でモック/シミュレーションにフォールバックします。
+**Microsoft Graph (SPO/Exchange 予定表)**、**Azure Speech (Neural TTS)**、**ACS Call Automation (Teams 会議参加・発話)**、**Claude による議事録要約 + Graph 投稿**、**事前承認 UI**、**複数会議スケジューラ** をすべて結線。資格情報が `.env.local` にあれば実機接続、未設定時は自動でモック/シミュレーション/フォールバックに切り替わります。
 
 ## 技術スタック
 
@@ -113,11 +113,53 @@ AZURE_SPEECH_VOICE=ja-JP-NanamiNeural
 
 ACS Call Automation 1.4.0 (stable) の `CallLocator` はまだ Teams meeting link を直接受け付けないため、現状は `MicrosoftTeamsAppIdentifier` を target にした `createCall` 経路を使っています。会議 URL からの直接参加が preview SDK に降りてきたら `joinAsTeamsApp` を差し替える想定です。
 
+## 議事録 / 要約 / 投稿セットアップ
+
+```
+ANTHROPIC_API_KEY=...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+
+# 議事録投稿先
+MINUTES_POST_MODE=channel    # none / channel / chat
+MINUTES_TEAM_ID=...
+MINUTES_CHANNEL_ID=...
+MINUTES_CHAT_ID=
+```
+
+- 未設定なら **未設定モード** で発話ログを生で markdown 化して返す (LLM 課金なしで開発可能)
+- 投稿には Graph 側で `ChannelMessage.Send` または `ChatMessage.Send` 系のアプリケーション権限が必要
+
+### 議事録パイプライン
+
+```
+ACS transcription → /api/transcript (lines) → Claude (Anthropic Messages API, prompt caching 有効)
+                                                     ↓
+                                              { markdown, decisions, actionItems }
+                                                     ↓
+                                              /api/minutes?post=true → Graph で Teams 投稿
+```
+
+UI からは手動で発話を追加することもでき、ACS transcription を有効化していない開発環境でも要約が試せます。
+
+## 機能一覧
+
+| 機能 | 場所 |
+|------|------|
+| 本日の予定 (Graph) | ヘッダ + 左サイドバー |
+| スケジューラ (自動操縦) | 右上 — 時刻に合わせて自動 join/leave |
+| 司会君コントロール | ModeratorPanel — 参加・退出・5 セクション発話 |
+| 事前承認モード | ModeratorPanel — チェックボックス ON で発話前にレビュー |
+| アジェンダ | AgendaList |
+| 一言ネタ | IcebreakerPanel — 4 カテゴリ x 15 種 |
+| 音声プレビュー | SpeechPreview — 話速・ピッチ調整付き |
+| 議事録生成・投稿 | MinutesPanel — 発話追加、Claude 要約、Teams 投稿、md ダウンロード |
+| 台本エディタ | ScriptEditor |
+
 ## 次のステップ
 
-- **議事録自動生成** — ACS Call Automation の transcription + 要約 LLM
-- **発話の事前承認 UI** — TTS プレビューを承認してから会議に流す安全弁
-- **複数会議の同時進行** — 1 司会君が複数会議を順番に司会するスケジューラ
+- **本物の ACS transcription WebSocket 接続** — `startTranscription()` を呼んで WebSocket でリアルタイムに `/api/transcript` を埋める
+- **承認待ち発話のキュー化** — 複数セクションを並べてまとめて承認
+- **権限 / 操作ログの永続化** — 現状 in-memory なのでサーバ再起動で消える
 
 ## 環境変数
 

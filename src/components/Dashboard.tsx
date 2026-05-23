@@ -10,6 +10,8 @@ import { ModeratorPanel } from "./ModeratorPanel";
 import { ScriptEditor } from "./ScriptEditor";
 import { IcebreakerPanel } from "./IcebreakerPanel";
 import { SpeechPreview } from "./SpeechPreview";
+import { MinutesPanel } from "./MinutesPanel";
+import { SchedulerPanel } from "./SchedulerPanel";
 
 type Props = {
   meetings: Meeting[];
@@ -97,6 +99,7 @@ export function Dashboard({
         </section>
 
         <section className="space-y-6">
+          <SchedulerPanel meetings={meetings} onSelect={setSelectedId} />
           {selected && (
             <>
               <ModeratorPanel meeting={selected} />
@@ -113,6 +116,7 @@ export function Dashboard({
                 <IcebreakerPanel />
               </div>
               <SpeechPreview meeting={selected} />
+              <MinutesPanel meeting={selected} />
               <ScriptEditor initial={defaultScript} />
             </>
           )}

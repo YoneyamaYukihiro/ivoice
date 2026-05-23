@@ -19,19 +19,20 @@ export const dynamic = "force-dynamic";
 
 type Body = {
   meetingId: string;
-  script: ModeratorScript;
-  section: keyof ModeratorScript;
-  meeting: Meeting;
+  script?: ModeratorScript;
+  section?: keyof ModeratorScript;
+  meeting?: Meeting;
   agenda?: AgendaItem;
   icebreaker?: Icebreaker;
+  text?: string;
   voice?: string;
 };
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as Body | null;
-  if (!body?.meetingId || !body.script || !body.section || !body.meeting) {
+  if (!body?.meetingId) {
     return NextResponse.json(
-      { error: "meetingId, script, section, meeting are required" },
+      { error: "meetingId is required" },
       { status: 400 },
     );
   }
@@ -43,11 +44,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const text = renderSection(body.script, body.section, {
-    meeting: body.meeting,
-    agenda: body.agenda,
-    icebreaker: body.icebreaker,
-  });
+  let text: string;
+  if (body.text) {
+    text = body.text;
+  } else {
+    if (!body.script || !body.section || !body.meeting) {
+      return NextResponse.json(
+        { error: "Provide either `text` or (script + section + meeting)." },
+        { status: 400 },
+      );
+    }
+    text = renderSection(body.script, body.section, {
+      meeting: body.meeting,
+      agenda: body.agenda,
+      icebreaker: body.icebreaker,
+    });
+  }
 
   if (call.mode === "simulated") {
     return NextResponse.json({ mode: "simulated", text, played: true });
