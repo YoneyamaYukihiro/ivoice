@@ -7,6 +7,7 @@ import { AgendaList } from "./AgendaList";
 import { ModeratorPanel } from "./ModeratorPanel";
 import { ScriptEditor } from "./ScriptEditor";
 import { IcebreakerPanel } from "./IcebreakerPanel";
+import { SpeechPreview } from "./SpeechPreview";
 
 export function Dashboard() {
   const [selectedId, setSelectedId] = useState(mockMeetings[0]?.id ?? "");
@@ -72,6 +73,7 @@ export function Dashboard() {
                 </div>
                 <IcebreakerPanel />
               </div>
+              <SpeechPreview meeting={selected} />
               <ScriptEditor initial={defaultScript} />
             </>
           )}
