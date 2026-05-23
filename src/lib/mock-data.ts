@@ -67,4 +67,6 @@ export const defaultScript: ModeratorScript = {
     "残り 1 分です。次の議題に進む準備をお願いします。",
   closing:
     "本日の議事は以上です。決定事項とアクションアイテムは議事録にまとめます。ご参加ありがとうございました。",
+  icebreaker:
+    "本題に入る前に、一言だけ。{{icebreaker.text}}",
 };

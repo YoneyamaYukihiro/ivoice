@@ -33,4 +33,15 @@ export type ModeratorScript = {
   agendaTransition: string;
   timeWarning: string;
   closing: string;
+  icebreaker: string;
 };
+
+export type IcebreakerCategory = "dajare" | "trivia" | "weather" | "tech";
+
+export type Icebreaker = {
+  id: string;
+  category: IcebreakerCategory;
+  text: string;
+};
+
+export type IcebreakerTiming = "opening" | "agendaTransition" | "closing" | "manual";

@@ -6,6 +6,7 @@ import { MeetingCard } from "./MeetingCard";
 import { AgendaList } from "./AgendaList";
 import { ModeratorPanel } from "./ModeratorPanel";
 import { ScriptEditor } from "./ScriptEditor";
+import { IcebreakerPanel } from "./IcebreakerPanel";
 
 export function Dashboard() {
   const [selectedId, setSelectedId] = useState(mockMeetings[0]?.id ?? "");
@@ -59,11 +60,17 @@ export function Dashboard() {
           {selected && (
             <>
               <ModeratorPanel meeting={selected} />
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="mb-3 text-base font-semibold text-slate-900">
-                  アジェンダ
-                </h2>
-                <AgendaList items={selected.agenda} activeId={selected.agenda[0]?.id} />
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <h2 className="mb-3 text-base font-semibold text-slate-900">
+                    アジェンダ
+                  </h2>
+                  <AgendaList
+                    items={selected.agenda}
+                    activeId={selected.agenda[0]?.id}
+                  />
+                </div>
+                <IcebreakerPanel />
               </div>
               <ScriptEditor initial={defaultScript} />
             </>

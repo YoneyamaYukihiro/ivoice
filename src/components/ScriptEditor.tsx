@@ -9,6 +9,7 @@ type Props = {
 
 const fields: { key: keyof ModeratorScript; label: string; hint: string }[] = [
   { key: "opening", label: "オープニング", hint: "会議冒頭の挨拶・進行宣言" },
+  { key: "icebreaker", label: "一言ネタ枕詞", hint: "{{icebreaker.text}} の前後に添える定型" },
   { key: "agendaTransition", label: "アジェンダ遷移", hint: "次の議題に進むときの定型句" },
   { key: "timeWarning", label: "時間警告", hint: "残り 1 分時のアナウンス" },
   { key: "closing", label: "クロージング", hint: "会議終了時の締めの挨拶" },
