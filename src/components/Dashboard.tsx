@@ -10,6 +10,7 @@ import { ModeratorPanel } from "./ModeratorPanel";
 import { ScriptEditor } from "./ScriptEditor";
 import { IcebreakerPanel } from "./IcebreakerPanel";
 import { SpeechPreview } from "./SpeechPreview";
+import { TextReader } from "./TextReader";
 import { MinutesPanel } from "./MinutesPanel";
 import { SchedulerPanel } from "./SchedulerPanel";
 
@@ -116,6 +117,7 @@ export function Dashboard({
                 <IcebreakerPanel />
               </div>
               <SpeechPreview meeting={selected} />
+              <TextReader />
               <MinutesPanel meeting={selected} />
               <ScriptEditor initial={defaultScript} />
             </>
