@@ -106,7 +106,17 @@ export default function ReaderPage() {
       placeholderValues,
       isTextareaPlaceholder,
     );
-    const afterMembers = applyMembers(afterTextarea, members);
+    const presenterSurfaces = new Set(
+      PERSON_KEYS.map((k) => placeholderValues[k]).filter(
+        (v): v is string => Boolean(v),
+      ),
+    );
+    const effectiveMembers = presenterSurfaces.size
+      ? members.map((m) =>
+          presenterSurfaces.has(m.surface) ? { ...m, isSelf: true } : m,
+        )
+      : members;
+    const afterMembers = applyMembers(afterTextarea, effectiveMembers);
     return applyPlaceholders(
       afterMembers,
       placeholderValues,
