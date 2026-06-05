@@ -391,7 +391,7 @@ export default function ReaderPage() {
               disabled={templates.length === 0 || isBusy}
               className="rounded border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
             >
-              エクスポート (JSON)
+              エクスポート
             </button>
             <button
               type="button"

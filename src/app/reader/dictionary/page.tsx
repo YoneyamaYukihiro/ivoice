@@ -115,7 +115,7 @@ export default function DictionaryPage() {
           disabled={entries.length === 0}
           className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
         >
-          エクスポート (JSON)
+          エクスポート
         </button>
         <button
           type="button"
