@@ -14,7 +14,7 @@ export function parseSections(text: string): Section[] {
   };
 
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(/^#\s+(.*)$/);
+    const m = line.match(/^[#＃]\s*(\S.*)$/);
     if (m) {
       flush();
       title = m[1].trim();

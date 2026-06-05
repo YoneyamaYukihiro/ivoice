@@ -9,6 +9,8 @@ export function cleanupForReading(input: string): string {
 
   text = text.replace(/^#{2,}\s+/gm, "# ");
 
+  text = text.replace(/^＃\s*/gm, "# ");
+
   text = text.replace(/^[\-*]\s+/gm, "");
 
   const lines = text.split(/\r?\n/);
