@@ -53,6 +53,16 @@ export default function ReaderPage() {
 
   const stoppedRef = useRef(false);
   const advanceRef = useRef<(() => void) | null>(null);
+  const rateRef = useRef(rate);
+  const voiceURIRef = useRef(voiceURI);
+
+  useEffect(() => {
+    rateRef.current = rate;
+  }, [rate]);
+
+  useEffect(() => {
+    voiceURIRef.current = voiceURI;
+  }, [voiceURI]);
 
   useEffect(() => {
     setSupported(isSupported());
@@ -174,8 +184,8 @@ export default function ReaderPage() {
         applyDictionary(applyMembers(body, members), dictionary),
       );
       speak(replaced, {
-        voiceURI: voiceURI || undefined,
-        rate,
+        voiceURI: voiceURIRef.current || undefined,
+        rate: rateRef.current,
         onEnd: () => resolve(),
         onError: () => resolve(),
       });
