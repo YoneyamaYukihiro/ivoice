@@ -150,7 +150,7 @@ export default function ReaderPage() {
     if (!renderedText.trim()) return;
     setStatus("speaking");
     const replaced = normalizeForSpeak(
-      applyDictionary(applyMembers(renderedText, members), dictionary),
+      applyDictionary(renderedText, dictionary),
     );
     speak(replaced, {
       voiceURI: voiceURI || undefined,
@@ -182,7 +182,7 @@ export default function ReaderPage() {
   const speakAsync = (body: string) =>
     new Promise<void>((resolve) => {
       const replaced = normalizeForSpeak(
-        applyDictionary(applyMembers(body, members), dictionary),
+        applyDictionary(body, dictionary),
       );
       speak(replaced, {
         voiceURI: voiceURIRef.current || undefined,
