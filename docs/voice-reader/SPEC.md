@@ -246,10 +246,10 @@ type Stored = Template[];
 |------|------|---|----------|
 | 組み込み | `BUILTIN_KEYS` に含む（`date`, `today`, `date_full`, `weekday`, `time`） | テキスト入力（自動入力済み） | `defaultValueFor()` で算出 |
 | 人物 | `PERSON_KEYS` に含む（`presenter`, `担当者`） | ドロップダウン（メンバーから選択）／なければテキスト | メンバー surface |
-| 複数行 | `isTextareaPlaceholder(key)` が true（`/予定|本文|内容|schedule|content/i`） | textarea（複数行） | 手入力・貼り付け |
+| 複数行 | `isTextareaPlaceholder(key)` が true（`/予定|本文|内容|一言|コメント|schedule|content|comment/i`） | textarea（複数行）+ 「チャットを整形」「クリア」ボタン | 手入力・貼り付け |
 | その他 | 上記以外 | テキスト入力 | 手入力 |
 
-`hasUnfilledPlaceholders` が真の場合は再生ボタンを無効化（未入力警告）。
+未入力プレースホルダは無音で飛ばされる（v0.2.0 以降）。本文が空のセクションは丸ごとスキップ。再生ボタンは無効化しない。
 
 ## 8. 主要機能
 
@@ -290,7 +290,7 @@ type Stored = Template[];
 
 詳細は §7.3。
 
-### 8.7 Copilot 出力整形（手動ボタン）
+### 8.7 チャットを整形（手動ボタン）
 
 `src/lib/cleanup.ts` の `cleanupForReading()`。textarea 内容を整形：
 
@@ -301,7 +301,13 @@ type Stored = Template[];
 - 空行で囲まれた短い行（句読点なし）に `# ` を前置（セクション化）
 - 連続空行を 1 行に圧縮
 
-### 8.8 読み上げ前の正規化（自動）
+メイン textarea と textarea プレースホルダ（`{本日の予定}` 等）の **両方** に「チャットを整形」ボタンを配置。後者には「クリア」ボタンも併設。
+
+### 8.8 読み上げ全文プレビュー
+
+セクション一覧の下に折りたたみで「実際に読み上げられる全文プレビュー」を配置。`renderedText`（プレースホルダ + メンバー適用済）にさらに辞書置換と正規化を適用した最終形を、セクション単位で表示する（`spokenSections`）。セクション一覧は原稿に近い形を保持、プレビューは発声の最終形を確認用。
+
+### 8.9 読み上げ前の正規化（自動）
 
 `src/lib/normalize.ts` の `normalizeForSpeak()`：
 
