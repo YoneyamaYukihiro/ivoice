@@ -4,7 +4,7 @@
 
 ## 1. 目的
 
-自分が書いた業務文章を、Azure Neural TTS で自然な日本語で読み上げる。固有名詞の読み間違いを辞書で潰せる。
+自分が書いた業務文章を、ブラウザ内蔵の音声合成（Web Speech API）で自然な日本語で読み上げる。固有名詞の読み間違いを辞書で潰せる。
 
 最終的には **朝会で自分の分身として司会** を務める TTS 司会ツールへ育てる。本企画書はその第 1 段（MVP）の輪郭を定める。
 
@@ -21,21 +21,22 @@
 | 論点 | 決定 | 理由 |
 |------|------|------|
 | 声 | 自然な代替声（ボイスクローンしない） | 「自分の声に似せる」までは不要。自然さがあれば分身として機能する |
-| TTS エンジン | Azure Speech Neural TTS | 社内 Azure テナント内に閉じる前提なら業務文章を投入して OK |
+| TTS エンジン | **Web Speech API（ブラウザ内蔵）** | 課金回避が最優先。Edge / Chrome on Windows なら `Microsoft Nanami Online` 等の自然な日本語声が無料で使える |
 | 固有名詞学習 | 手動辞書テーブル | 最もシンプルで確実。自動候補抽出は将来 |
 | 認証 | なし | 自分しか使わない |
 | 既存 ivoice コード | 残置（共存） | URL `/reader` で別アプリとして動かす。気が向いたら最後に削除 |
+| TTS 差し替え余地 | 抽象 1 関数 (`speak(text)`) に閉じる | Phase 4 で別エンジン（Teams 配信用）に差し替える前提 |
 
 ## 5. MVP 機能スコープ
 
 ### 含む
 
 1. **テキスト貼り付けエリア** — 1 つの textarea、長文 OK
-2. **「読み上げ」ボタン** — クリックで Azure Speech に送信、音声生成
-3. **音声プレーヤー** — 再生 / 停止 / 話速調整（0.8x〜1.5x）
+2. **「読み上げ」ボタン** — クリックでブラウザ TTS を起動、即時発声
+3. **再生コントロール** — 再生 / 一時停止 / 停止 / 話速調整（0.8x〜1.5x）
 4. **固有名詞辞書（手動）** — 別画面の表。「表記 → よみがな」を 1 行ずつ追加・編集・削除
-5. **辞書置換ロジック** — TTS 投入前に文中の表記をマッチさせ、SSML `<sub alias="よみ">` で読みを上書き
-6. **声選択** — `ja-JP-NanamiNeural`（女性）/ `ja-JP-KeitaNeural`（男性）など 2〜3 種
+5. **辞書置換ロジック** — TTS 投入前にテキスト段階で表記をよみがなに置換（Web Speech API は SSML 非対応のため）
+6. **声選択** — ブラウザが提供する `ja-*` 声を列挙してドロップダウンから選択（環境で異なるため固定リストにしない）
 
 ### 明示的に含まない（MVP では切る）
 
@@ -52,18 +53,13 @@
 | 層 | 採用 | 備考 |
 |----|------|------|
 | フロント | Next.js 14 (App Router) + TypeScript + Tailwind | ivoice と同じ。`/reader` ルート配下に新規実装 |
-| TTS | Azure Speech REST API（Neural TTS） | Next.js API Route 内で叩く。キーはサーバ側で保持 |
-| 辞書保存 | `data/dictionary.json` ローカルファイル | 1 ファイルの JSON で十分。DB は不要 |
+| TTS | **Web Speech API**（`window.speechSynthesis`） | ブラウザ内で完結。サーバ・API キー不要 |
+| 辞書保存 | **`localStorage`**（ブラウザ） | サーバ無しでよく、デバイス毎に独立で十分 |
 | 状態管理 | React useState のみ | 規模的にライブラリ不要 |
 
 ### 環境変数
 
-```
-AZURE_SPEECH_KEY=...
-AZURE_SPEECH_REGION=japaneast
-```
-
-`.env.local` に置き、Next.js API Route 内で参照する。
+**なし**。Web Speech API はブラウザ内蔵なのでキー不要。
 
 ### ディレクトリ構成（予定）
 
@@ -71,22 +67,16 @@ AZURE_SPEECH_REGION=japaneast
 src/
 ├── app/
 │   └── reader/
-│       ├── page.tsx              # メイン画面（textarea + プレーヤー）
-│       ├── dictionary/
-│       │   └── page.tsx          # 辞書編集画面
-│       └── api/
-│           └── tts/
-│               └── route.ts      # Azure Speech 呼び出し
-├── lib/
-│   ├── dictionary.ts             # 辞書 CRUD（JSON ファイル）
-│   └── ssml.ts                   # 辞書置換 + SSML 組み立て
-└── services/
-    └── azure-speech.ts           # Azure Speech REST API クライアント
-data/
-└── dictionary.json               # 辞書本体
+│       ├── page.tsx              # メイン画面（textarea + 再生ボタン）
+│       └── dictionary/
+│           └── page.tsx          # 辞書編集画面
+└── lib/
+    ├── dictionary.ts             # 辞書 CRUD（localStorage）
+    ├── replace.ts                # 辞書置換ロジック
+    └── tts.ts                    # speak() / pause() / stop() の薄いラッパ（差し替え点）
 ```
 
-既存の `src/app/page.tsx`（ivoice 本体）には触らない。
+既存の `src/app/page.tsx`（ivoice 本体）には触らない。**サーバ側のファイル / API Route は MVP では不要**。
 
 ## 7. 北極星に向けた段階
 
@@ -103,6 +93,15 @@ data/
 
 ## 9. 着手前のチェックリスト
 
-- [ ] `.env.local` に `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` を設定
-- [ ] `data/` ディレクトリを `.gitignore` に追加（辞書を Git に入れない）
-- [ ] `docs/voice-reader/PLAN.md`（本ファイル）をコミット
+- [x] `docs/voice-reader/PLAN.md`（本ファイル）をコミット
+- [ ] Edge または Chrome（最新版）で動作確認できる環境を用意
+- [ ] `src/app/reader/page.tsx` スキャフォールド作成 → `npm run dev` で `/reader` にアクセスして空画面を確認
+
+外部サービスの契約や API キーは **不要**。
+
+## 10. 既知のリスク・制約
+
+- **Web Speech API は録音不可**: 発声は出来ても mp3 として保存・配信は不可。mp3 出力は Phase 2 の追加要件で、その時点で別エンジン併用が必要
+- **ブラウザ間の声差**: Edge と Chrome で利用可能な日本語声が違う。Edge を主環境として進める想定
+- **長文の途中停止**: Web Speech API は OS によっては 数十秒〜数分で勝手に止まる既知の現象あり。MVP では「気になったら工夫する」スタンス
+- **Phase 4 で必ず差し替え**: Teams 配信の段では Web Speech API では不可能なので、TTS 層を抽象化しておく
