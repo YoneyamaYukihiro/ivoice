@@ -334,10 +334,10 @@ export default function ReaderPage() {
               type="button"
               onClick={() => setText((t) => cleanupForReading(t))}
               disabled={!text.trim() || isBusy}
-              title="Copilot 出力の見出しに # を付け、太字記号や箇条書きを整理"
+              title="チャットの見出しに # を付け、太字記号や箇条書きを整理"
               className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
             >
-              Copilot 出力を整形
+              チャットを整形
             </button>
           </div>
           <textarea
@@ -378,7 +378,7 @@ export default function ReaderPage() {
                           {`{${key}}`}
                         </code>
                         <span className="text-xs text-slate-500">
-                          複数行 OK / Copilot 出力をそのまま貼れます
+                          複数行 OK / チャットをそのまま貼れます
                         </span>
                         <button
                           type="button"
@@ -389,7 +389,7 @@ export default function ReaderPage() {
                             }))
                           }
                           disabled={isEmpty}
-                          title="Copilot 出力の太字・箇条書きを整理、見出し検出"
+                          title="チャットの太字・箇条書きを整理、見出し検出"
                           className="ml-auto rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                         >
                           整形
