@@ -70,3 +70,27 @@ export function removeTemplate(
 ): Template[] {
   return templates.filter((t) => t.id !== id);
 }
+
+export function parseImportedTemplates(json: string): Template[] | null {
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return null;
+    return parsed
+      .filter(
+        (t): t is { name: string; text: string; updatedAt?: number } =>
+          typeof t?.name === "string" && typeof t?.text === "string",
+      )
+      .map((t) => ({
+        id: newId(),
+        name: t.name,
+        text: t.text,
+        updatedAt:
+          typeof t.updatedAt === "number" && Number.isFinite(t.updatedAt)
+            ? t.updatedAt
+            : Date.now(),
+      }))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  } catch {
+    return null;
+  }
+}

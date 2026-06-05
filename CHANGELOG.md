@@ -10,8 +10,9 @@
 - 辞書：JSON での **エクスポート / インポート** ボタン
 - メンバー（`/reader/members`）：氏名・よみがな・敬称を **インライン編集**できるように
 - メンバー：JSON での **エクスポート / インポート** ボタン
+- 台本テンプレ（`/reader`）：JSON での **エクスポート / インポート** ボタン
   - インポート時は既存データを上書き（確認ダイアログあり）
-  - エクスポートファイル名は `voice-reader-dictionary-YYYY-MM-DD.json` / `voice-reader-members-YYYY-MM-DD.json`
+  - エクスポートファイル名は `voice-reader-{dictionary|members|templates}-YYYY-MM-DD.json`
 
 ### 修正
 - `{presenter}` `{担当者}` で選んだ人物の名前が、`{本日の予定}` 等の自由文中に出てきても **敬称が付かないように**

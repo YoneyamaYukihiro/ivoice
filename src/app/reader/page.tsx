@@ -19,6 +19,7 @@ import { applyDictionary } from "@/lib/replace";
 import { parseSections } from "@/lib/sections";
 import {
   loadTemplates,
+  parseImportedTemplates,
   removeTemplate,
   saveTemplates,
   upsertTemplate,
@@ -58,6 +59,8 @@ export default function ReaderPage() {
   const advanceRef = useRef<(() => void) | null>(null);
   const rateRef = useRef(rate);
   const voiceURIRef = useRef(voiceURI);
+  const templateFileInputRef = useRef<HTMLInputElement>(null);
+  const [templateImportMessage, setTemplateImportMessage] = useState<string>("");
 
   useEffect(() => {
     rateRef.current = rate;
@@ -173,6 +176,52 @@ export default function ReaderPage() {
     setTemplates(next);
     saveTemplates(next);
     setSelectedTemplateId("");
+  };
+
+  const handleExportTemplates = () => {
+    const blob = new Blob([JSON.stringify(templates, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `voice-reader-templates-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportTemplates = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result;
+      if (typeof text !== "string") return;
+      const imported = parseImportedTemplates(text);
+      if (!imported) {
+        setTemplateImportMessage(
+          "インポートに失敗しました。JSON の形式を確認してください。",
+        );
+        return;
+      }
+      if (templates.length > 0) {
+        const ok = window.confirm(
+          `既存の ${templates.length} 件を上書きして、${imported.length} 件を読み込みますか？`,
+        );
+        if (!ok) {
+          setTemplateImportMessage("キャンセルしました");
+          return;
+        }
+      }
+      setTemplates(imported);
+      saveTemplates(imported);
+      setSelectedTemplateId("");
+      setTemplateImportMessage(`${imported.length} 件を読み込みました`);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const handleSpeak = () => {
@@ -299,40 +348,72 @@ export default function ReaderPage() {
       )}
 
       <section className="space-y-5">
-        <div className="flex flex-wrap items-end gap-3 rounded border border-slate-200 bg-white p-3">
-          <div className="min-w-[200px] flex-1">
-            <label className="mb-1 block text-xs font-medium text-slate-700">
-              保存した台本
-            </label>
-            <select
-              value={selectedTemplateId}
-              onChange={(e) => handleSelectTemplate(e.target.value)}
-              className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-            >
-              <option value="">— 選択してください —</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={!text.trim() || isBusy}
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
-          >
-            現在を保存
-          </button>
-          {selectedTemplate && (
+        <div className="rounded border border-slate-200 bg-white p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[200px] flex-1">
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                保存した台本
+              </label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => handleSelectTemplate(e.target.value)}
+                className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              >
+                <option value="">— 選択してください —</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
-              onClick={handleDeleteTemplate}
-              disabled={isBusy}
-              className="rounded border border-rose-300 bg-white px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+              onClick={handleSave}
+              disabled={!text.trim() || isBusy}
+              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
             >
-              削除
+              現在を保存
             </button>
-          )}
+            {selectedTemplate && (
+              <button
+                onClick={handleDeleteTemplate}
+                disabled={isBusy}
+                className="rounded border border-rose-300 bg-white px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+              >
+                削除
+              </button>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2">
+            <button
+              type="button"
+              onClick={handleExportTemplates}
+              disabled={templates.length === 0 || isBusy}
+              className="rounded border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            >
+              エクスポート (JSON)
+            </button>
+            <button
+              type="button"
+              onClick={() => templateFileInputRef.current?.click()}
+              disabled={isBusy}
+              className="rounded border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            >
+              インポート
+            </button>
+            <input
+              ref={templateFileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleImportTemplates}
+              className="hidden"
+            />
+            {templateImportMessage && (
+              <span className="text-xs text-slate-600">
+                {templateImportMessage}
+              </span>
+            )}
+          </div>
         </div>
 
         <div>
