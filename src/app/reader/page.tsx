@@ -232,7 +232,7 @@ export default function ReaderPage() {
     <main className="mx-auto max-w-3xl px-6 py-10">
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">voice-reader</h1>
+          <h1 className="text-2xl font-bold tracking-tight">AIボイス司会くん</h1>
           <p className="mt-1 text-sm text-slate-600">
             貼り付けた文章をブラウザ内蔵の音声合成で読み上げます。
             <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs">
