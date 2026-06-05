@@ -70,6 +70,41 @@ export function clearSelf(members: Member[]): Member[] {
   return members.map((m) => ({ ...m, isSelf: false }));
 }
 
+export function updateMember(
+  members: Member[],
+  id: string,
+  patch: Partial<Pick<Member, "surface" | "reading" | "honorific">>,
+): Member[] {
+  return members.map((m) => (m.id === id ? { ...m, ...patch } : m));
+}
+
+export function parseImportedMembers(json: string): Member[] | null {
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return null;
+    const valid = parsed.filter(
+      (m): m is { surface: string; reading: string; honorific?: string; isSelf?: boolean } =>
+        typeof m?.surface === "string" && typeof m?.reading === "string",
+    );
+    let anySelf = false;
+    const out: Member[] = valid.map((m) => {
+      const honorific = isHonorific(m.honorific) ? m.honorific : "さん";
+      const isSelf = Boolean(m.isSelf) && !anySelf;
+      if (isSelf) anySelf = true;
+      return {
+        id: newId(),
+        surface: m.surface,
+        reading: m.reading,
+        honorific,
+        isSelf,
+      };
+    });
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 export function bulkAddFromCsv(
   members: Member[],
   csv: string,

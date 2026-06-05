@@ -53,3 +53,33 @@ export function removeEntry(
 ): DictionaryEntry[] {
   return entries.filter((e) => e.id !== id);
 }
+
+export function updateEntry(
+  entries: DictionaryEntry[],
+  id: string,
+  field: "surface" | "reading",
+  value: string,
+): DictionaryEntry[] {
+  return entries.map((e) => (e.id === id ? { ...e, [field]: value } : e));
+}
+
+export function parseImportedDictionary(json: string): DictionaryEntry[] | null {
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return null;
+    return parsed
+      .filter(
+        (e): e is { surface: string; reading: string } =>
+          typeof e?.surface === "string" && typeof e?.reading === "string",
+      )
+      .map((e) => {
+        const id =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        return { id, surface: e.surface, reading: e.reading };
+      });
+  } catch {
+    return null;
+  }
+}
