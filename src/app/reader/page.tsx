@@ -12,6 +12,7 @@ import {
   BUILTIN_KEYS,
   defaultValueFor,
   extractPlaceholders,
+  isTextareaPlaceholder,
   PERSON_KEYS,
 } from "@/lib/placeholders";
 import { applyDictionary } from "@/lib/replace";
@@ -344,6 +345,32 @@ export default function ReaderPage() {
                 const isBuiltin = BUILTIN_KEYS.includes(key);
                 const isPerson = PERSON_KEYS.includes(key);
                 const useMemberSelect = isPerson && members.length > 0;
+                const useTextarea = isTextareaPlaceholder(key);
+                if (useTextarea) {
+                  return (
+                    <div key={key} className="sm:col-span-2">
+                      <div className="mb-1 flex items-center gap-2">
+                        <code className="rounded bg-slate-100 px-2 py-1 text-xs">
+                          {`{${key}}`}
+                        </code>
+                        <span className="text-xs text-slate-500">
+                          複数行 OK / Copilot 出力をそのまま貼れます
+                        </span>
+                      </div>
+                      <textarea
+                        value={placeholderValues[key] ?? ""}
+                        onChange={(e) =>
+                          setPlaceholderValues((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
+                        }
+                        placeholder={"ここに貼り付け"}
+                        className="h-32 w-full resize-y rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                      />
+                    </div>
+                  );
+                }
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <code className="rounded bg-slate-100 px-2 py-1 text-xs">
