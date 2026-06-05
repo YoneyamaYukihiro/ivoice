@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
+import {
+  applyPlaceholders,
+  BUILTIN_KEYS,
+  defaultValueFor,
+  extractPlaceholders,
+} from "@/lib/placeholders";
 import { applyDictionary } from "@/lib/replace";
 import { parseSections } from "@/lib/sections";
 import {
@@ -36,6 +42,9 @@ export default function ReaderPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [currentSectionIndex, setCurrentSectionIndex] = useState(-1);
+  const [placeholderValues, setPlaceholderValues] = useState<
+    Record<string, string>
+  >({});
 
   const stoppedRef = useRef(false);
   const advanceRef = useRef<(() => void) | null>(null);
@@ -54,8 +63,36 @@ export default function ReaderPage() {
     };
   }, []);
 
-  const sections = useMemo(() => parseSections(text), [text]);
+  const placeholders = useMemo(() => extractPlaceholders(text), [text]);
+
+  useEffect(() => {
+    setPlaceholderValues((prev) => {
+      const next: Record<string, string> = {};
+      for (const key of placeholders) {
+        if (prev[key] !== undefined) {
+          next[key] = prev[key];
+        } else if (BUILTIN_KEYS.includes(key)) {
+          next[key] = defaultValueFor(key);
+        } else {
+          next[key] = "";
+        }
+      }
+      return next;
+    });
+  }, [placeholders]);
+
+  const renderedText = useMemo(
+    () => applyPlaceholders(text, placeholderValues),
+    [text, placeholderValues],
+  );
+  const sections = useMemo(
+    () => parseSections(renderedText),
+    [renderedText],
+  );
   const hasMultipleSections = sections.length > 1;
+  const hasUnfilledPlaceholders = placeholders.some(
+    (k) => !placeholderValues[k] || placeholderValues[k].length === 0,
+  );
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
@@ -93,9 +130,9 @@ export default function ReaderPage() {
   };
 
   const handleSpeak = () => {
-    if (!text.trim()) return;
+    if (!renderedText.trim()) return;
     setStatus("speaking");
-    const replaced = applyDictionary(text, dictionary);
+    const replaced = applyDictionary(renderedText, dictionary);
     speak(replaced, {
       voiceURI: voiceURI || undefined,
       rate,
@@ -248,8 +285,49 @@ export default function ReaderPage() {
           <p className="mt-1 text-xs text-slate-500">
             {text.length.toLocaleString()} 文字
             {sections.length > 0 && ` / ${sections.length} セクション`}
+            {placeholders.length > 0 && ` / ${placeholders.length} プレースホルダ`}
           </p>
         </div>
+
+        {placeholders.length > 0 && (
+          <div className="rounded border border-slate-200 bg-white p-3">
+            <p className="mb-2 text-xs font-medium text-slate-700">
+              プレースホルダ
+              {hasUnfilledPlaceholders && (
+                <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-800">
+                  未入力あり
+                </span>
+              )}
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {placeholders.map((key) => {
+                const isBuiltin = BUILTIN_KEYS.includes(key);
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <code className="rounded bg-slate-100 px-2 py-1 text-xs">
+                      {`{${key}}`}
+                    </code>
+                    <input
+                      type="text"
+                      value={placeholderValues[key] ?? ""}
+                      onChange={(e) =>
+                        setPlaceholderValues((prev) => ({
+                          ...prev,
+                          [key]: e.target.value,
+                        }))
+                      }
+                      placeholder={isBuiltin ? "自動入力済み" : "値を入力"}
+                      className="flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:border-slate-500 focus:outline-none"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              組み込み: {"{date}"} {"{today}"} {"{date_full}"} {"{weekday}"} {"{time}"}
+            </p>
+          </div>
+        )}
 
         {sections.length > 0 && (
           <div className="rounded border border-slate-200 bg-white p-3">
@@ -337,7 +415,11 @@ export default function ReaderPage() {
             <>
               <button
                 onClick={handleSpeak}
-                disabled={!text.trim() || supported === false}
+                disabled={
+                  !text.trim() ||
+                  supported === false ||
+                  hasUnfilledPlaceholders
+                }
                 className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
               >
                 通常読み上げ
@@ -345,11 +427,16 @@ export default function ReaderPage() {
               {hasMultipleSections && (
                 <button
                   onClick={handleHostMode}
-                  disabled={supported === false}
+                  disabled={supported === false || hasUnfilledPlaceholders}
                   className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300"
                 >
                   司会モードで再生 ({sections.length} セクション)
                 </button>
+              )}
+              {hasUnfilledPlaceholders && (
+                <span className="text-xs text-amber-700">
+                  プレースホルダを埋めてください
+                </span>
               )}
             </>
           )}
