@@ -44,5 +44,5 @@ export const BUILTIN_KEYS = ["date", "today", "date_full", "time", "weekday"];
 export const PERSON_KEYS = ["presenter", "担当者"];
 
 export function isTextareaPlaceholder(key: string): boolean {
-  return /予定|本文|内容|schedule|content/i.test(key);
+  return /予定|本文|内容|一言|コメント|schedule|content|comment/i.test(key);
 }
