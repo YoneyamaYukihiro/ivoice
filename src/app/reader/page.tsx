@@ -46,6 +46,7 @@ export default function ReaderPage() {
   const [placeholderValues, setPlaceholderValues] = useState<
     Record<string, string>
   >({});
+  const [now, setNow] = useState<Date | null>(null);
 
   const stoppedRef = useRef(false);
   const advanceRef = useRef<(() => void) | null>(null);
@@ -54,6 +55,8 @@ export default function ReaderPage() {
     setSupported(isSupported());
     setDictionary(loadDictionary());
     setTemplates(loadTemplates());
+    setNow(new Date());
+    const tick = window.setInterval(() => setNow(new Date()), 60_000);
     listJapaneseVoices().then((vs) => {
       setVoices(vs);
       if (vs.length > 0) setVoiceURI(vs[0].uri);
@@ -61,8 +64,19 @@ export default function ReaderPage() {
     return () => {
       stoppedRef.current = true;
       stop();
+      window.clearInterval(tick);
     };
   }, []);
+
+  const formattedNow = now
+    ? `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${["日", "月", "火", "水", "木", "金", "土"][now.getDay()]}）${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+    : "";
+
+  const insertDateAtTop = () => {
+    if (!now) return;
+    const dateLine = `${now.getMonth() + 1}月${now.getDate()}日 ${["日", "月", "火", "水", "木", "金", "土"][now.getDay()]}曜日`;
+    setText((t) => (t.startsWith(dateLine) ? t : `${dateLine}\n\n${t}`));
+  };
 
   const placeholders = useMemo(() => extractPlaceholders(text), [text]);
 
@@ -211,7 +225,7 @@ export default function ReaderPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">voice-reader</h1>
           <p className="mt-1 text-sm text-slate-600">
@@ -228,6 +242,23 @@ export default function ReaderPage() {
           辞書を編集 ({dictionary.length})
         </Link>
       </header>
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-white px-4 py-3">
+        <div>
+          <p className="text-xs text-slate-500">今日</p>
+          <p className="text-lg font-semibold tabular-nums">
+            {formattedNow || "—"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={insertDateAtTop}
+          disabled={!now || isBusy}
+          className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+        >
+          本文の先頭に日付を入れる
+        </button>
+      </div>
 
       {supported === false && (
         <div className="mb-6 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
