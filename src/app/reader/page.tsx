@@ -5,6 +5,13 @@ import { useEffect, useState } from "react";
 import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
 import { applyDictionary } from "@/lib/replace";
 import {
+  loadTemplates,
+  removeTemplate,
+  saveTemplates,
+  upsertTemplate,
+  type Template,
+} from "@/lib/templates";
+import {
   isSupported,
   listJapaneseVoices,
   pause,
@@ -22,10 +29,13 @@ export default function ReaderPage() {
   const [status, setStatus] = useState<"idle" | "speaking" | "paused">("idle");
   const [supported, setSupported] = useState<boolean | null>(null);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
     setSupported(isSupported());
     setDictionary(loadDictionary());
+    setTemplates(loadTemplates());
     listJapaneseVoices().then((vs) => {
       setVoices(vs);
       if (vs.length > 0) setVoiceURI(vs[0].uri);
@@ -34,6 +44,41 @@ export default function ReaderPage() {
       stop();
     };
   }, []);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+
+  const handleSelectTemplate = (id: string) => {
+    setSelectedTemplateId(id);
+    const t = templates.find((x) => x.id === id);
+    if (t) setText(t.text);
+  };
+
+  const handleSave = () => {
+    const defaultName = selectedTemplate?.name ?? "";
+    const name = window.prompt("テンプレ名を入力", defaultName);
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existing = templates.find((t) => t.name === trimmed);
+    if (existing && existing.id !== selectedTemplate?.id) {
+      const ok = window.confirm(`「${trimmed}」は既にあります。上書きしますか？`);
+      if (!ok) return;
+    }
+    const { next, saved } = upsertTemplate(templates, trimmed, text);
+    setTemplates(next);
+    saveTemplates(next);
+    setSelectedTemplateId(saved.id);
+  };
+
+  const handleDeleteTemplate = () => {
+    if (!selectedTemplate) return;
+    const ok = window.confirm(`「${selectedTemplate.name}」を削除しますか？`);
+    if (!ok) return;
+    const next = removeTemplate(templates, selectedTemplate.id);
+    setTemplates(next);
+    saveTemplates(next);
+    setSelectedTemplateId("");
+  };
 
   const handleSpeak = () => {
     if (!text.trim()) return;
@@ -87,6 +132,41 @@ export default function ReaderPage() {
       )}
 
       <section className="space-y-5">
+        <div className="flex flex-wrap items-end gap-3 rounded border border-slate-200 bg-white p-3">
+          <div className="min-w-[200px] flex-1">
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              保存した台本
+            </label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => handleSelectTemplate(e.target.value)}
+              className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            >
+              <option value="">— 選択してください —</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={!text.trim()}
+            className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
+          >
+            現在を保存
+          </button>
+          {selectedTemplate && (
+            <button
+              onClick={handleDeleteTemplate}
+              className="rounded border border-rose-300 bg-white px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50"
+            >
+              削除
+            </button>
+          )}
+        </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
             読み上げるテキスト
