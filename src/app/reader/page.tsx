@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
+import { applyDictionary } from "@/lib/replace";
 import {
   isSupported,
   listJapaneseVoices,
@@ -18,9 +21,11 @@ export default function ReaderPage() {
   const [rate, setRate] = useState(1.0);
   const [status, setStatus] = useState<"idle" | "speaking" | "paused">("idle");
   const [supported, setSupported] = useState<boolean | null>(null);
+  const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
 
   useEffect(() => {
     setSupported(isSupported());
+    setDictionary(loadDictionary());
     listJapaneseVoices().then((vs) => {
       setVoices(vs);
       if (vs.length > 0) setVoiceURI(vs[0].uri);
@@ -33,7 +38,8 @@ export default function ReaderPage() {
   const handleSpeak = () => {
     if (!text.trim()) return;
     setStatus("speaking");
-    speak(text, {
+    const replaced = applyDictionary(text, dictionary);
+    speak(replaced, {
       voiceURI: voiceURI || undefined,
       rate,
       onEnd: () => setStatus("idle"),
@@ -58,11 +64,19 @@ export default function ReaderPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">voice-reader</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          貼り付けた文章をブラウザ内蔵の音声合成で読み上げます。
-        </p>
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">voice-reader</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            貼り付けた文章をブラウザ内蔵の音声合成で読み上げます。
+          </p>
+        </div>
+        <Link
+          href="/reader/dictionary"
+          className="text-sm text-slate-600 underline hover:text-slate-900"
+        >
+          辞書を編集 ({dictionary.length})
+        </Link>
       </header>
 
       {supported === false && (
