@@ -18,6 +18,7 @@ export function applyMembers(text: string, members: Member[]): string {
       "g",
     );
     result = result.replace(pattern, (_match, foundHonorific) => {
+      if (m.isSelf) return m.reading;
       const honorific =
         foundHonorific !== undefined ? foundHonorific : m.honorific;
       return m.reading + honorific;

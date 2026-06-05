@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import {
   addMember,
   bulkAddFromCsv,
+  clearSelf,
   HONORIFIC_OPTIONS,
   loadMembers,
   removeMember,
   saveMembers,
+  setSelf,
   type Honorific,
   type Member,
 } from "@/lib/members";
@@ -41,6 +43,11 @@ export default function MembersPage() {
 
   const handleRemove = (id: string) => {
     persist(removeMember(members, id));
+  };
+
+  const handleToggleSelf = (id: string) => {
+    const target = members.find((m) => m.id === id);
+    persist(target?.isSelf ? clearSelf(members) : setSelf(members, id));
   };
 
   const handleBulk = () => {
@@ -167,16 +174,28 @@ export default function MembersPage() {
                 <th className="px-4 py-2">氏名</th>
                 <th className="px-4 py-2">よみがな</th>
                 <th className="px-4 py-2">敬称</th>
+                <th className="px-4 py-2 text-center">自分</th>
                 <th className="px-4 py-2 text-right">操作</th>
               </tr>
             </thead>
             <tbody>
               {members.map((m) => (
-                <tr key={m.id} className="border-t border-slate-100">
+                <tr
+                  key={m.id}
+                  className={`border-t border-slate-100 ${m.isSelf ? "bg-sky-50" : ""}`}
+                >
                   <td className="px-4 py-2 font-medium">{m.surface}</td>
                   <td className="px-4 py-2 text-slate-700">{m.reading}</td>
                   <td className="px-4 py-2 text-slate-700">
-                    {m.honorific || "—"}
+                    {m.isSelf ? "（敬称なし）" : m.honorific || "—"}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(m.isSelf)}
+                      onChange={() => handleToggleSelf(m.id)}
+                      title="チェックすると読み上げ時に敬称が付かなくなります（自分自身用）"
+                    />
                   </td>
                   <td className="px-4 py-2 text-right">
                     <button

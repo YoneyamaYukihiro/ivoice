@@ -5,6 +5,7 @@ export type Member = {
   surface: string;
   reading: string;
   honorific: Honorific;
+  isSelf?: boolean;
 };
 
 const STORAGE_KEY = "voice-reader.members";
@@ -23,13 +24,15 @@ export function loadMembers(): Member[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (m): m is Member =>
-        typeof m?.id === "string" &&
-        typeof m?.surface === "string" &&
-        typeof m?.reading === "string" &&
-        typeof m?.honorific === "string",
-    );
+    return parsed
+      .filter(
+        (m): m is Member =>
+          typeof m?.id === "string" &&
+          typeof m?.surface === "string" &&
+          typeof m?.reading === "string" &&
+          typeof m?.honorific === "string",
+      )
+      .map((m) => ({ ...m, isSelf: Boolean(m.isSelf) }));
   } catch {
     return [];
   }
@@ -57,6 +60,14 @@ export function addMember(
 
 export function removeMember(members: Member[], id: string): Member[] {
   return members.filter((m) => m.id !== id);
+}
+
+export function setSelf(members: Member[], id: string): Member[] {
+  return members.map((m) => ({ ...m, isSelf: m.id === id }));
+}
+
+export function clearSelf(members: Member[]): Member[] {
+  return members.map((m) => ({ ...m, isSelf: false }));
 }
 
 export function bulkAddFromCsv(

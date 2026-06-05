@@ -39,7 +39,7 @@ export default function ReaderPage() {
   const [text, setText] = useState("");
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voiceURI, setVoiceURI] = useState<string>("");
-  const [rate, setRate] = useState(0.7);
+  const [rate, setRate] = useState(1.1);
   const [pauseSec, setPauseSec] = useState(1);
   const [status, setStatus] = useState<Status>("idle");
   const [supported, setSupported] = useState<boolean | null>(null);
@@ -99,8 +99,8 @@ export default function ReaderPage() {
   }, [placeholders]);
 
   const renderedText = useMemo(
-    () => applyPlaceholders(text, placeholderValues),
-    [text, placeholderValues],
+    () => applyPlaceholders(applyMembers(text, members), placeholderValues),
+    [text, members, placeholderValues],
   );
   const sections = useMemo(
     () => parseSections(renderedText),
