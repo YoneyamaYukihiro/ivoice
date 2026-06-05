@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
 import { applyDictionary } from "@/lib/replace";
+import { parseSections } from "@/lib/sections";
 import {
   loadTemplates,
   removeTemplate,
@@ -21,16 +22,23 @@ import {
   type Voice,
 } from "@/lib/tts";
 
+type Status = "idle" | "speaking" | "paused" | "hosting" | "between";
+
 export default function ReaderPage() {
   const [text, setText] = useState("");
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voiceURI, setVoiceURI] = useState<string>("");
   const [rate, setRate] = useState(1.0);
-  const [status, setStatus] = useState<"idle" | "speaking" | "paused">("idle");
+  const [pauseSec, setPauseSec] = useState(3);
+  const [status, setStatus] = useState<Status>("idle");
   const [supported, setSupported] = useState<boolean | null>(null);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(-1);
+
+  const stoppedRef = useRef(false);
+  const advanceRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setSupported(isSupported());
@@ -41,9 +49,13 @@ export default function ReaderPage() {
       if (vs.length > 0) setVoiceURI(vs[0].uri);
     });
     return () => {
+      stoppedRef.current = true;
       stop();
     };
   }, []);
+
+  const sections = useMemo(() => parseSections(text), [text]);
+  const hasMultipleSections = sections.length > 1;
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
@@ -103,9 +115,61 @@ export default function ReaderPage() {
   };
 
   const handleStop = () => {
+    stoppedRef.current = true;
     stop();
+    advanceRef.current?.();
+    advanceRef.current = null;
     setStatus("idle");
+    setCurrentSectionIndex(-1);
   };
+
+  const speakAsync = (body: string) =>
+    new Promise<void>((resolve) => {
+      const replaced = applyDictionary(body, dictionary);
+      speak(replaced, {
+        voiceURI: voiceURI || undefined,
+        rate,
+        onEnd: () => resolve(),
+        onError: () => resolve(),
+      });
+    });
+
+  const waitWithAdvance = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const timer = window.setTimeout(() => {
+        advanceRef.current = null;
+        resolve();
+      }, ms);
+      advanceRef.current = () => {
+        window.clearTimeout(timer);
+        advanceRef.current = null;
+        resolve();
+      };
+    });
+
+  const handleHostMode = async () => {
+    if (sections.length === 0) return;
+    stoppedRef.current = false;
+    for (let i = 0; i < sections.length; i++) {
+      if (stoppedRef.current) break;
+      setCurrentSectionIndex(i);
+      setStatus("speaking");
+      await speakAsync(sections[i].body);
+      if (stoppedRef.current) break;
+      if (i < sections.length - 1) {
+        setStatus("between");
+        await waitWithAdvance(pauseSec * 1000);
+      }
+    }
+    setStatus("idle");
+    setCurrentSectionIndex(-1);
+  };
+
+  const handleAdvance = () => {
+    advanceRef.current?.();
+  };
+
+  const isBusy = status === "speaking" || status === "paused" || status === "between";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -114,6 +178,9 @@ export default function ReaderPage() {
           <h1 className="text-2xl font-bold tracking-tight">voice-reader</h1>
           <p className="mt-1 text-sm text-slate-600">
             貼り付けた文章をブラウザ内蔵の音声合成で読み上げます。
+            <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs">
+              # 見出し でセクション分け
+            </span>
           </p>
         </div>
         <Link
@@ -152,7 +219,7 @@ export default function ReaderPage() {
           </div>
           <button
             onClick={handleSave}
-            disabled={!text.trim()}
+            disabled={!text.trim() || isBusy}
             className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
           >
             現在を保存
@@ -160,7 +227,8 @@ export default function ReaderPage() {
           {selectedTemplate && (
             <button
               onClick={handleDeleteTemplate}
-              className="rounded border border-rose-300 bg-white px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50"
+              disabled={isBusy}
+              className="rounded border border-rose-300 bg-white px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
             >
               削除
             </button>
@@ -174,15 +242,46 @@ export default function ReaderPage() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="ここに文章を貼り付けてください"
+            placeholder={"ここに文章を貼り付けてください\n\n# 見出し と書くと司会モードでセクション分けされます"}
             className="h-64 w-full resize-y rounded border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed focus:border-slate-500 focus:outline-none"
           />
           <p className="mt-1 text-xs text-slate-500">
             {text.length.toLocaleString()} 文字
+            {sections.length > 0 && ` / ${sections.length} セクション`}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {sections.length > 0 && (
+          <div className="rounded border border-slate-200 bg-white p-3">
+            <p className="mb-2 text-xs font-medium text-slate-700">
+              セクション一覧
+            </p>
+            <ol className="space-y-1 text-sm">
+              {sections.map((s, i) => {
+                const isCurrent = i === currentSectionIndex;
+                return (
+                  <li
+                    key={i}
+                    className={`flex items-baseline gap-2 rounded px-2 py-1 ${
+                      isCurrent ? "bg-emerald-100 font-medium" : ""
+                    }`}
+                  >
+                    <span className="font-mono text-xs text-slate-500">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="font-medium">{s.title || "(無題)"}</span>
+                    <span className="truncate text-xs text-slate-500">
+                      {s.body.slice(0, 40)}
+                      {s.body.length > 40 ? "…" : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
               声
@@ -216,17 +315,43 @@ export default function ReaderPage() {
               className="w-full"
             />
           </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              セクション間の間: <span className="font-mono">{pauseSec}秒</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={15}
+              step={1}
+              value={pauseSec}
+              onChange={(e) => setPauseSec(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {status !== "speaking" && status !== "paused" && (
-            <button
-              onClick={handleSpeak}
-              disabled={!text.trim() || supported === false}
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
-            >
-              読み上げ
-            </button>
+          {status === "idle" && (
+            <>
+              <button
+                onClick={handleSpeak}
+                disabled={!text.trim() || supported === false}
+                className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
+              >
+                通常読み上げ
+              </button>
+              {hasMultipleSections && (
+                <button
+                  onClick={handleHostMode}
+                  disabled={supported === false}
+                  className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300"
+                >
+                  司会モードで再生 ({sections.length} セクション)
+                </button>
+              )}
+            </>
           )}
           {status === "speaking" && (
             <button
@@ -244,7 +369,15 @@ export default function ReaderPage() {
               再開
             </button>
           )}
-          {(status === "speaking" || status === "paused") && (
+          {status === "between" && (
+            <button
+              onClick={handleAdvance}
+              className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+            >
+              次のセクションへ →
+            </button>
+          )}
+          {isBusy && (
             <button
               onClick={handleStop}
               className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
@@ -253,7 +386,14 @@ export default function ReaderPage() {
             </button>
           )}
           <span className="text-xs text-slate-500">
-            状態: {status === "idle" ? "待機中" : status === "speaking" ? "再生中" : "一時停止中"}
+            状態:{" "}
+            {status === "idle"
+              ? "待機中"
+              : status === "speaking"
+                ? `再生中${currentSectionIndex >= 0 ? ` (${currentSectionIndex + 1}/${sections.length})` : ""}`
+                : status === "paused"
+                  ? "一時停止中"
+                  : `セクション間 (${pauseSec}秒)`}
           </span>
         </div>
       </section>
