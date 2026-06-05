@@ -6,6 +6,7 @@ import { cleanupForReading } from "@/lib/cleanup";
 import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
 import { loadMembers, type Member } from "@/lib/members";
 import { applyMembers } from "@/lib/members-apply";
+import { normalizeForSpeak } from "@/lib/normalize";
 import {
   applyPlaceholders,
   BUILTIN_KEYS,
@@ -37,8 +38,8 @@ export default function ReaderPage() {
   const [text, setText] = useState("");
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voiceURI, setVoiceURI] = useState<string>("");
-  const [rate, setRate] = useState(1.0);
-  const [pauseSec, setPauseSec] = useState(3);
+  const [rate, setRate] = useState(0.7);
+  const [pauseSec, setPauseSec] = useState(1);
   const [status, setStatus] = useState<Status>("idle");
   const [supported, setSupported] = useState<boolean | null>(null);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
@@ -137,9 +138,8 @@ export default function ReaderPage() {
   const handleSpeak = () => {
     if (!renderedText.trim()) return;
     setStatus("speaking");
-    const replaced = applyDictionary(
-      applyMembers(renderedText, members),
-      dictionary,
+    const replaced = normalizeForSpeak(
+      applyDictionary(applyMembers(renderedText, members), dictionary),
     );
     speak(replaced, {
       voiceURI: voiceURI || undefined,
@@ -170,9 +170,8 @@ export default function ReaderPage() {
 
   const speakAsync = (body: string) =>
     new Promise<void>((resolve) => {
-      const replaced = applyDictionary(
-        applyMembers(body, members),
-        dictionary,
+      const replaced = normalizeForSpeak(
+        applyDictionary(applyMembers(body, members), dictionary),
       );
       speak(replaced, {
         voiceURI: voiceURI || undefined,
@@ -415,7 +414,7 @@ export default function ReaderPage() {
             </label>
             <input
               type="range"
-              min={0.8}
+              min={0.5}
               max={1.5}
               step={0.1}
               value={rate}
