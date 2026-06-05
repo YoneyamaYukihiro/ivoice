@@ -33,6 +33,7 @@ import {
   stop,
   type Voice,
 } from "@/lib/tts";
+import { APP_VERSION } from "@/lib/version";
 
 type Status = "idle" | "speaking" | "paused" | "hosting" | "between";
 
@@ -243,7 +244,12 @@ export default function ReaderPage() {
     <main className="mx-auto max-w-3xl px-6 py-10">
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">AI-Voice司会くん</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            AI-Voice司会くん{" "}
+            <span className="ml-1 align-middle text-xs font-normal text-slate-500">
+              v{APP_VERSION}
+            </span>
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             貼り付けた文章をブラウザ内蔵の音声合成で読み上げます。
             <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs">
