@@ -370,6 +370,7 @@ export default function ReaderPage() {
                 const useMemberSelect = isPerson && members.length > 0;
                 const useTextarea = isTextareaPlaceholder(key);
                 if (useTextarea) {
+                  const isEmpty = !placeholderValues[key];
                   return (
                     <div key={key} className="sm:col-span-2">
                       <div className="mb-1 flex items-center gap-2">
@@ -379,6 +380,19 @@ export default function ReaderPage() {
                         <span className="text-xs text-slate-500">
                           複数行 OK / Copilot 出力をそのまま貼れます
                         </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPlaceholderValues((prev) => ({
+                              ...prev,
+                              [key]: "",
+                            }))
+                          }
+                          disabled={isEmpty}
+                          className="ml-auto rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          クリア
+                        </button>
                       </div>
                       <textarea
                         value={placeholderValues[key] ?? ""}
