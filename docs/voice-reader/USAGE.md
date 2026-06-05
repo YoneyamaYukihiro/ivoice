@@ -43,13 +43,64 @@
 
 ### 毎回
 
-1. ターミナルで `npm run dev` を実行
-2. `✓ Ready in 〜s` の表示が出たら、ブラウザで http://localhost:3000/reader を開く
-3. **Edge または Chrome** の最新版を使うこと（Web Speech API 必須）
+PowerShell でプロジェクトディレクトリに **必ず移動してから** 起動する。`npm` は今いるディレクトリの `package.json` を探すため、別の場所だと `ENOENT: package.json not found` で失敗する。
+
+```powershell
+cd c:\Users\5001699\source\repos\YoneyamaYukihiro\ivoice
+npm run dev
+```
+
+出力に以下が出たら成功：
+
+```
+- Local:        http://localhost:3000
+✓ Ready in X秒
+```
+
+ブラウザ（**Edge または Chrome 最新版**）で http://localhost:3000/reader を開く。
 
 ### 終了
 
 ターミナルで **Ctrl + C** で dev サーバを停止。
+
+### ポート競合・うまく起動しない場合の再起動手順
+
+`npm run dev` の出力に：
+
+```
+⚠ Port 3000 is in use, trying 3001 instead.
+⚠ Port 3001 is in use, trying 3002 instead.
+- Local:        http://localhost:3002
+```
+
+と出た場合は、**前回の dev サーバプロセスがまだ残っている** ことが原因。3002 でもアクセスは可能だが、3000 で動かしたい場合は以下でクリーンに再起動：
+
+```powershell
+# 1. 動いている Node プロセスを確認
+tasklist /FI "IMAGENAME eq node.exe"
+
+# 2. すべての Node プロセスを終了
+taskkill /F /IM node.exe
+
+# 3. プロジェクトディレクトリへ
+cd c:\Users\5001699\source\repos\YoneyamaYukihiro\ivoice
+
+# 4. 起動
+npm run dev
+```
+
+**注意**: `taskkill /F /IM node.exe` はマシン上のすべての Node.js プロセスを強制終了する。他に Node を使うアプリ（VS Code 拡張など）があればそれも巻き込まれるので注意。
+
+### URL でハマったら
+
+| URL | 結果 |
+|-----|------|
+| `http://localhost:3000` | ivoice 本体ページ（未使用想定） |
+| `http://localhost:3000/reader` | ✅ AI-Voice司会くん |
+| `http://localhost:3000/readers` | ❌ 404（末尾の s が余分） |
+| `http://localhost:3002/reader` | ✅（ポート競合で 3002 に逃げた場合） |
+
+`/reader` の `r` は小文字、末尾の `/` はあってもなくても可、`s` は付けない。
 
 ---
 
