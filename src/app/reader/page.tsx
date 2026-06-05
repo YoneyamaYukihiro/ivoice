@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { cleanupForReading } from "@/lib/cleanup";
 import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
 import {
   applyPlaceholders,
@@ -273,9 +274,20 @@ export default function ReaderPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            読み上げるテキスト
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-sm font-medium text-slate-700">
+              読み上げるテキスト
+            </label>
+            <button
+              type="button"
+              onClick={() => setText((t) => cleanupForReading(t))}
+              disabled={!text.trim() || isBusy}
+              title="Copilot 出力の見出しに # を付け、太字記号や箇条書きを整理"
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            >
+              Copilot 出力を整形
+            </button>
+          </div>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
