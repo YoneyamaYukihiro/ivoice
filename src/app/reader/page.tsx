@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cleanupForReading } from "@/lib/cleanup";
 import { loadDictionary, type DictionaryEntry } from "@/lib/dictionary";
+import { loadMembers, type Member } from "@/lib/members";
+import { applyMembers } from "@/lib/members-apply";
 import {
   applyPlaceholders,
   BUILTIN_KEYS,
@@ -40,6 +42,7 @@ export default function ReaderPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [supported, setSupported] = useState<boolean | null>(null);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [currentSectionIndex, setCurrentSectionIndex] = useState(-1);
@@ -53,6 +56,7 @@ export default function ReaderPage() {
   useEffect(() => {
     setSupported(isSupported());
     setDictionary(loadDictionary());
+    setMembers(loadMembers());
     setTemplates(loadTemplates());
     listJapaneseVoices().then((vs) => {
       setVoices(vs);
@@ -133,7 +137,10 @@ export default function ReaderPage() {
   const handleSpeak = () => {
     if (!renderedText.trim()) return;
     setStatus("speaking");
-    const replaced = applyDictionary(renderedText, dictionary);
+    const replaced = applyDictionary(
+      applyMembers(renderedText, members),
+      dictionary,
+    );
     speak(replaced, {
       voiceURI: voiceURI || undefined,
       rate,
@@ -163,7 +170,10 @@ export default function ReaderPage() {
 
   const speakAsync = (body: string) =>
     new Promise<void>((resolve) => {
-      const replaced = applyDictionary(body, dictionary);
+      const replaced = applyDictionary(
+        applyMembers(body, members),
+        dictionary,
+      );
       speak(replaced, {
         voiceURI: voiceURI || undefined,
         rate,
@@ -221,12 +231,20 @@ export default function ReaderPage() {
             </span>
           </p>
         </div>
-        <Link
-          href="/reader/dictionary"
-          className="text-sm text-slate-600 underline hover:text-slate-900"
-        >
-          辞書を編集 ({dictionary.length})
-        </Link>
+        <div className="flex flex-col items-end gap-1 text-sm">
+          <Link
+            href="/reader/members"
+            className="text-slate-600 underline hover:text-slate-900"
+          >
+            メンバー ({members.length})
+          </Link>
+          <Link
+            href="/reader/dictionary"
+            className="text-slate-600 underline hover:text-slate-900"
+          >
+            辞書 ({dictionary.length})
+          </Link>
+        </div>
       </header>
 
       {supported === false && (
