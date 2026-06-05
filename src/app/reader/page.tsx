@@ -99,10 +99,19 @@ export default function ReaderPage() {
     });
   }, [placeholders]);
 
-  const renderedText = useMemo(
-    () => applyPlaceholders(applyMembers(text, members), placeholderValues),
-    [text, members, placeholderValues],
-  );
+  const renderedText = useMemo(() => {
+    const afterTextarea = applyPlaceholders(
+      text,
+      placeholderValues,
+      isTextareaPlaceholder,
+    );
+    const afterMembers = applyMembers(afterTextarea, members);
+    return applyPlaceholders(
+      afterMembers,
+      placeholderValues,
+      (k) => !isTextareaPlaceholder(k),
+    );
+  }, [text, members, placeholderValues]);
   const sections = useMemo(
     () => parseSections(renderedText),
     [renderedText],

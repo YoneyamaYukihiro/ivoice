@@ -11,8 +11,10 @@ export function extractPlaceholders(text: string): string[] {
 export function applyPlaceholders(
   text: string,
   values: Record<string, string>,
+  filter?: (key: string) => boolean,
 ): string {
   return text.replace(PATTERN, (whole, key) => {
+    if (filter && !filter(key)) return whole;
     const v = values[key];
     return v && v.length > 0 ? v : whole;
   });
