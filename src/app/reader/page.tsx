@@ -117,6 +117,14 @@ export default function ReaderPage() {
     () => parseSections(renderedText),
     [renderedText],
   );
+  const spokenSections = useMemo(
+    () =>
+      sections.map((s) => ({
+        title: normalizeForSpeak(applyDictionary(s.title, dictionary)),
+        body: normalizeForSpeak(applyDictionary(s.body, dictionary)),
+      })),
+    [sections, dictionary],
+  );
   const hasMultipleSections = sections.length > 1;
   const hasUnfilledPlaceholders = placeholders.some(
     (k) => !placeholderValues[k] || placeholderValues[k].length === 0,
@@ -467,6 +475,27 @@ export default function ReaderPage() {
               })}
             </ol>
           </div>
+        )}
+
+        {sections.length > 0 && (
+          <details className="rounded border border-slate-200 bg-white p-3">
+            <summary className="cursor-pointer text-xs font-medium text-slate-700">
+              実際に読み上げられる全文プレビュー（辞書・正規化済み）
+            </summary>
+            <ol className="mt-3 space-y-3 text-sm">
+              {spokenSections.map((s, i) => (
+                <li key={i}>
+                  <div className="font-mono text-xs text-slate-500">
+                    {String(i + 1).padStart(2, "0")}
+                    {s.title ? ` ${s.title}` : ""}
+                  </div>
+                  <div className="mt-1 whitespace-pre-wrap text-slate-700">
+                    {s.body}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </details>
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
