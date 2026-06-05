@@ -175,6 +175,18 @@ type Stored = Template[];
 - **永続**: 辞書 / メンバー / テンプレ（明示削除まで残る）
 - **セッション**: プレースホルダ値、テキスト編集中の状態、再生位置（リロードで消える）
 
+### 入出力
+
+辞書・メンバー・テンプレの 3 種類は、各画面の「エクスポート」「インポート」ボタンで JSON ファイルとして入出力可能。
+
+| データ | ファイル名 | 関連関数 |
+|--------|---------|---------|
+| 辞書 | `voice-reader-dictionary-YYYY-MM-DD.json` | `parseImportedDictionary()` |
+| メンバー | `voice-reader-members-YYYY-MM-DD.json` | `parseImportedMembers()` |
+| テンプレ | `voice-reader-templates-YYYY-MM-DD.json` | `parseImportedTemplates()` |
+
+インポート時は `id` を再採番し、既存データを全置換（確認ダイアログあり）。形式不正は `null` 返却で安全に reject。
+
 ## 7. 読み上げパイプライン
 
 `/reader` で「通常読み上げ」または「司会モードで再生」を押した時、テキストは以下の変換を順に通って TTS エンジンに渡される。
@@ -251,6 +263,18 @@ type Stored = Template[];
 
 未入力プレースホルダは無音で飛ばされる（v0.2.0 以降）。本文が空のセクションは丸ごとスキップ。再生ボタンは無効化しない。
 
+### 7.4 presenter の自動敬称剥がし（v0.3.0 以降）
+
+`{presenter}` `{担当者}` で選ばれた人物の氏名が、`{本日の予定}` 等の自由文中に出てきても **敬称を付けない**。
+
+実装は `renderedText` 構築時に：
+
+1. `PERSON_KEYS` の placeholderValues を集めて `presenterSurfaces` を作る
+2. members を写像して、surface が `presenterSurfaces` に含まれるメンバーを `isSelf: true` にした `effectiveMembers` を作る
+3. `applyMembers(text, effectiveMembers)` で敬称付与（その日の登板者だけ剥がれる）
+
+副作用なし。members の永続データには影響しない。
+
 ## 8. 主要機能
 
 ### 8.1 通常読み上げ
@@ -272,19 +296,22 @@ type Stored = Template[];
 
 ### 8.3 固有名詞辞書
 
-`/reader/dictionary` で CRUD。読み上げ時に表記 → よみがなを単純文字列置換。
+`/reader/dictionary` で CRUD。表記・よみがなを **インライン編集可**（テーブルセル直接編集、onChange で即保存）。読み上げ時に表記 → よみがなを単純文字列置換。
+JSON エクスポート / インポート対応。
 
 ### 8.4 メンバー名簿
 
-`/reader/members` で CRUD + CSV 一括追加。
+`/reader/members` で CRUD + CSV 一括追加。氏名・よみがな・敬称は **インライン編集可**。
 
 - 敬称（さん／くん／様／なし）を自動付与
 - 本文に既に敬称が書かれていればそれを優先
 - 「自分」フラグ ON で敬称を完全に剥がす（1 人だけ ON 可）
+- JSON エクスポート / インポート対応
 
 ### 8.5 台本テンプレ
 
 `/reader` 上部のプルダウンから呼び出し、「現在を保存」で上書き／新規。同名は確認後に上書き。
+JSON エクスポート / インポート対応（保存した台本エリア下段にボタン）。
 
 ### 8.6 プレースホルダ
 
