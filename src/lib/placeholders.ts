@@ -16,7 +16,7 @@ export function applyPlaceholders(
   return text.replace(PATTERN, (whole, key) => {
     if (filter && !filter(key)) return whole;
     const v = values[key];
-    return v && v.length > 0 ? v : whole;
+    return v && v.length > 0 ? v : "";
   });
 }
 

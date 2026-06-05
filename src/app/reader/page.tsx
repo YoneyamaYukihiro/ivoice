@@ -350,8 +350,8 @@ export default function ReaderPage() {
             <p className="mb-2 text-xs font-medium text-slate-700">
               プレースホルダ
               {hasUnfilledPlaceholders && (
-                <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-800">
-                  未入力あり
+                <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 font-normal text-slate-600">
+                  空欄は飛ばされます
                 </span>
               )}
             </p>
@@ -525,11 +525,7 @@ export default function ReaderPage() {
             <>
               <button
                 onClick={handleSpeak}
-                disabled={
-                  !text.trim() ||
-                  supported === false ||
-                  hasUnfilledPlaceholders
-                }
+                disabled={!text.trim() || supported === false}
                 className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-slate-300"
               >
                 通常読み上げ
@@ -537,15 +533,15 @@ export default function ReaderPage() {
               {hasMultipleSections && (
                 <button
                   onClick={handleHostMode}
-                  disabled={supported === false || hasUnfilledPlaceholders}
+                  disabled={supported === false}
                   className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300"
                 >
                   司会モードで再生 ({sections.length} セクション)
                 </button>
               )}
               {hasUnfilledPlaceholders && (
-                <span className="text-xs text-amber-700">
-                  プレースホルダを埋めてください
+                <span className="text-xs text-slate-500">
+                  ※ 空欄のプレースホルダは飛ばされます
                 </span>
               )}
             </>
