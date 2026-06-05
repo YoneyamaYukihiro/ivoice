@@ -392,7 +392,7 @@ export default function ReaderPage() {
                           title="チャットの太字・箇条書きを整理、見出し検出"
                           className="ml-auto rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                         >
-                          整形
+                          チャットを整形
                         </button>
                         <button
                           type="button"
