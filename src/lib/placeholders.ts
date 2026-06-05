@@ -38,3 +38,5 @@ export function defaultValueFor(key: string): string {
 }
 
 export const BUILTIN_KEYS = ["date", "today", "date_full", "time", "weekday"];
+
+export const PERSON_KEYS = ["presenter", "担当者"];

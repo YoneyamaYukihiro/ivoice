@@ -12,6 +12,7 @@ import {
   BUILTIN_KEYS,
   defaultValueFor,
   extractPlaceholders,
+  PERSON_KEYS,
 } from "@/lib/placeholders";
 import { applyDictionary } from "@/lib/replace";
 import { parseSections } from "@/lib/sections";
@@ -341,23 +342,51 @@ export default function ReaderPage() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {placeholders.map((key) => {
                 const isBuiltin = BUILTIN_KEYS.includes(key);
+                const isPerson = PERSON_KEYS.includes(key);
+                const useMemberSelect = isPerson && members.length > 0;
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <code className="rounded bg-slate-100 px-2 py-1 text-xs">
                       {`{${key}}`}
                     </code>
-                    <input
-                      type="text"
-                      value={placeholderValues[key] ?? ""}
-                      onChange={(e) =>
-                        setPlaceholderValues((prev) => ({
-                          ...prev,
-                          [key]: e.target.value,
-                        }))
-                      }
-                      placeholder={isBuiltin ? "自動入力済み" : "値を入力"}
-                      className="flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:border-slate-500 focus:outline-none"
-                    />
+                    {useMemberSelect ? (
+                      <select
+                        value={placeholderValues[key] ?? ""}
+                        onChange={(e) =>
+                          setPlaceholderValues((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
+                        }
+                        className="flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:border-slate-500 focus:outline-none"
+                      >
+                        <option value="">— メンバーを選択 —</option>
+                        {members.map((m) => (
+                          <option key={m.id} value={m.surface}>
+                            {m.surface}（{m.reading}）
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={placeholderValues[key] ?? ""}
+                        onChange={(e) =>
+                          setPlaceholderValues((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          isBuiltin
+                            ? "自動入力済み"
+                            : isPerson
+                              ? "メンバー未登録のため手動入力"
+                              : "値を入力"
+                        }
+                        className="flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:border-slate-500 focus:outline-none"
+                      />
+                    )}
                   </div>
                 );
               })}
