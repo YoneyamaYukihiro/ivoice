@@ -7,6 +7,9 @@
 
 ### 追加
 - プロジェクト直下に `start.bat` と `stop.bat` を追加（ダブルクリックで起動・停止）
+  - `start.bat` は **完全非表示** で dev サーバを起動し、5 秒後にブラウザを自動で `/reader` に開く
+  - 出力は `dev-server.log` に記録
+  - 停止は `stop.bat` から（Ctrl+C は使えない）
 
 ---
 

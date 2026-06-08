@@ -1,11 +1,2 @@
 @echo off
-chcp 65001 > nul
-cd /d "%~dp0"
-
-echo === AI-Voice司会くん 起動 ===
-echo.
-echo URL: http://localhost:3000/reader
-echo （Ctrl+C で停止）
-echo.
-
-call npm run dev
+start "" powershell -WindowStyle Hidden -Command "Start-Process cmd -ArgumentList '/c','npm run dev > dev-server.log 2>&1' -WindowStyle Hidden -WorkingDirectory '%~dp0'; Start-Sleep -Seconds 5; Start-Process 'http://localhost:3000/reader'"
