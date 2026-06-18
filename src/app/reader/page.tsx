@@ -16,6 +16,11 @@ import {
   PERSON_KEYS,
 } from "@/lib/placeholders";
 import { applyDictionary } from "@/lib/replace";
+import {
+  generateScript as generateScriptViaLlm,
+  listModels as listOllamaModels,
+  type ScriptTone,
+} from "@/lib/script-generator";
 import { parseSections } from "@/lib/sections";
 import {
   loadTemplates,
@@ -55,6 +60,16 @@ export default function ReaderPage() {
     Record<string, string>
   >({});
 
+  // 原稿ジェネレーター（ローカル Ollama）
+  const [genNotes, setGenNotes] = useState("");
+  const [genTitle, setGenTitle] = useState("朝会");
+  const [genTone, setGenTone] = useState<ScriptTone>("standard");
+  const [genWithSections, setGenWithSections] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [genMessage, setGenMessage] = useState("");
+  const [genModels, setGenModels] = useState<string[]>([]);
+  const [genModel, setGenModel] = useState("");
+
   const stoppedRef = useRef(false);
   const advanceRef = useRef<(() => void) | null>(null);
   const rateRef = useRef(rate);
@@ -78,6 +93,15 @@ export default function ReaderPage() {
     listJapaneseVoices().then((vs) => {
       setVoices(vs);
       if (vs.length > 0) setVoiceURI(vs[0].uri);
+    });
+    listOllamaModels().then((r) => {
+      if (!r.ok) return;
+      setGenModels(r.models);
+      setGenModel(
+        r.default && r.models.includes(r.default)
+          ? r.default
+          : (r.models[0] ?? ""),
+      );
     });
     return () => {
       stoppedRef.current = true;
@@ -222,6 +246,34 @@ export default function ReaderPage() {
     };
     reader.readAsText(file);
     e.target.value = "";
+  };
+
+  const handleGenerate = async () => {
+    if (!genNotes.trim() || generating) return;
+    if (text.trim()) {
+      const ok = window.confirm(
+        "現在の読み上げテキストを生成結果で置き換えます。よろしいですか？",
+      );
+      if (!ok) return;
+    }
+    setGenerating(true);
+    setGenMessage("生成中… ローカル Ollama で原稿を作成しています");
+    const result = await generateScriptViaLlm({
+      notes: genNotes,
+      model: genModel || undefined,
+      title: genTitle.trim() || undefined,
+      tone: genTone,
+      withSections: genWithSections,
+      members,
+    });
+    setGenerating(false);
+    if (!result.ok) {
+      setGenMessage(`⚠ ${result.error}`);
+      return;
+    }
+    setText(result.script);
+    setSelectedTemplateId("");
+    setGenMessage(`✓ ${result.model} で生成しました（下の本文に反映済み）`);
   };
 
   const handleSpeak = () => {
@@ -415,6 +467,107 @@ export default function ReaderPage() {
             )}
           </div>
         </div>
+
+        <details className="rounded border border-indigo-200 bg-indigo-50/40 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-indigo-900">
+            ✨ 原稿を作る（ローカル Ollama）
+            <span className="ml-2 text-xs font-normal text-indigo-700">
+              箇条書き・チャットログから司会原稿を生成
+            </span>
+          </summary>
+          <div className="mt-3 space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-[160px]">
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  モデル
+                </label>
+                <select
+                  value={genModel}
+                  onChange={(e) => setGenModel(e.target.value)}
+                  disabled={genModels.length === 0}
+                  className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:bg-slate-100"
+                >
+                  {genModels.length === 0 && (
+                    <option value="">（Ollama 未接続）</option>
+                  )}
+                  {genModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-[140px]">
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  会議名
+                </label>
+                <input
+                  type="text"
+                  value={genTitle}
+                  onChange={(e) => setGenTitle(e.target.value)}
+                  placeholder="朝会"
+                  className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                />
+              </div>
+              <div className="min-w-[140px]">
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  トーン
+                </label>
+                <select
+                  value={genTone}
+                  onChange={(e) => setGenTone(e.target.value as ScriptTone)}
+                  className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                >
+                  <option value="standard">標準</option>
+                  <option value="friendly">フレンドリー</option>
+                  <option value="formal">フォーマル</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 py-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={genWithSections}
+                  onChange={(e) => setGenWithSections(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                見出し（# セクション）を付ける
+              </label>
+            </div>
+            <textarea
+              value={genNotes}
+              onChange={(e) => setGenNotes(e.target.value)}
+              placeholder={
+                "ここに箇条書きやアジェンダ、Teams のチャットをそのまま貼り付け\n\n例:\n・本日の連絡: サーバ移行は今夜22時から\n・水口さんの案件レビュー\n・来週の予定確認"
+              }
+              className="h-36 w-full resize-y rounded border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed focus:border-slate-500 focus:outline-none"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={!genNotes.trim() || generating || isBusy}
+                className="rounded bg-indigo-700 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600 disabled:bg-slate-300"
+              >
+                {generating ? "生成中…" : "司会原稿を作る"}
+              </button>
+              {genMessage && (
+                <span
+                  className={`text-xs ${
+                    genMessage.startsWith("⚠")
+                      ? "text-rose-600"
+                      : "text-slate-600"
+                  }`}
+                >
+                  {genMessage}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500">
+              生成結果は下の「読み上げるテキスト」に入ります。メンバー名簿（{members.length}名）も
+              LLM に渡して氏名表記を揃えます。
+            </p>
+          </div>
+        </details>
 
         <div>
           <div className="mb-1 flex items-center justify-between">

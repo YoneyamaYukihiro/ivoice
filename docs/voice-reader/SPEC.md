@@ -20,12 +20,14 @@
 | フレームワーク | Next.js | 14.2（App Router） |
 | スタイル | Tailwind CSS | 3.4 |
 | 音声合成 | Web Speech API (`window.speechSynthesis`) | ブラウザ内蔵 |
+| 原稿生成 | ローカル Ollama（既定 `qwen2.5:3b`） | `/api/reader/script` 経由。任意機能（未起動でも他機能は動作） |
 | 永続化 | `localStorage` | キーは `voice-reader.*` で名前空間化 |
 | ビルド / 実行 | Node.js | 20 LTS 推奨（24 でも動作確認済み） |
 
 ### 採用しなかったもの
 - サーバ DB / 認証 / 状態同期サーバ → 個人 dog-food のため不要
 - クラウド TTS（Azure / OpenAI / ElevenLabs 等） → 課金回避・キー取得回避のため
+- クラウド LLM（Claude / OpenAI 等）での原稿生成 → 同上。原稿生成はローカル Ollama で完結させる
 - 形態素解析 / NLP ライブラリ → MVP では文字列マッチで十分
 
 ## 3. アーキテクチャ
@@ -69,9 +71,10 @@
 | データ永続化 | ブラウザ（localStorage） |
 | TTS 発声 | ブラウザ（Web Speech API） |
 | 静的ファイル配信 | Next.js dev server |
-| サーバ API | **なし**（API Route 不使用） |
+| 原稿生成の中継 | Next.js API Route `/api/reader/script`（ブラウザ → Ollama の橋渡し） |
+| サーバ API | 原稿生成の中継 **1 本のみ**（他機能は API 不使用） |
 
-サーバ側は **静的ファイルを配るだけ**。アプリの本体ロジックは全部ブラウザで動く（SPA に近い構成）。
+アプリの本体ロジックは基本ブラウザで動く（SPA に近い構成）。例外は原稿ジェネレーターで、ブラウザから直接 Ollama を叩くと CORS に阻まれるため、Next.js の API Route が `http://localhost:11434` への POST を中継する。Ollama が未起動でも他機能は無傷で、生成ボタンを押した時だけ呼ぶ。
 
 ## 4. ディレクトリ構成
 
@@ -80,24 +83,30 @@ src/
 ├── app/
 │   ├── layout.tsx                  # ルートレイアウト（ivoice 共通）
 │   ├── page.tsx                    # ivoice 本体（未使用想定）
+│   ├── api/
+│   │   └── reader/
+│   │       └── script/route.ts     # 原稿生成: ブラウザ → Ollama 中継
 │   └── reader/                     # voice-reader 本体
 │       ├── layout.tsx              # /reader 以下のタイトル等を上書き
-│       ├── page.tsx                # メイン画面（textarea + プレーヤー）
+│       ├── page.tsx                # メイン画面（textarea + プレーヤー + 原稿ジェネレーター）
 │       ├── dictionary/
 │       │   └── page.tsx            # 固有名詞辞書ページ
 │       └── members/
 │           └── page.tsx            # メンバー名簿ページ
-└── lib/                            # フロント用ユーティリティ
-    ├── tts.ts                      # Web Speech API ラッパ
-    ├── dictionary.ts               # 辞書 CRUD（localStorage）
-    ├── replace.ts                  # 辞書置換ロジック
-    ├── members.ts                  # メンバー CRUD（localStorage）
-    ├── members-apply.ts            # メンバー置換ロジック（敬称対応）
-    ├── templates.ts                # 台本テンプレ CRUD
-    ├── sections.ts                 # # 見出しでセクション分割
-    ├── placeholders.ts             # {key} プレースホルダ展開
-    ├── normalize.ts                # 読み上げ前の句読点整理
-    └── cleanup.ts                  # Copilot 出力整形（手動ボタン）
+├── lib/                            # フロント用ユーティリティ
+│   ├── tts.ts                      # Web Speech API ラッパ
+│   ├── dictionary.ts               # 辞書 CRUD（localStorage）
+│   ├── replace.ts                  # 辞書置換ロジック
+│   ├── members.ts                  # メンバー CRUD（localStorage）
+│   ├── members-apply.ts            # メンバー置換ロジック（敬称対応）
+│   ├── templates.ts                # 台本テンプレ CRUD
+│   ├── sections.ts                 # # 見出しでセクション分割
+│   ├── placeholders.ts             # {key} プレースホルダ展開
+│   ├── normalize.ts                # 読み上げ前の句読点整理
+│   ├── cleanup.ts                  # Copilot 出力整形（手動ボタン）
+│   └── script-generator.ts         # 原稿生成のブラウザ側クライアント
+└── services/
+    └── ollama.ts                   # Ollama 呼び出し + プロンプト構築（サーバ側）
 
 docs/voice-reader/
 ├── PLAN.md                         # 企画書（決定事項）
@@ -348,6 +357,57 @@ JSON エクスポート / インポート対応（保存した台本エリア下
 
 textarea の見た目は変えず、speak 直前のみ適用。
 
+### 8.10 原稿ジェネレーター（ローカル Ollama）
+
+固定原稿を読むだけの「BOT」から脱却するための機能。箇条書き・アジェンダ・Teams チャットを渡すと、ローカル LLM が司会原稿に起こす。
+
+**フロー**
+
+```
+/reader「✨ 原稿を作る」パネル
+   │  notes / title / tone / withSections / members
+   ▼
+src/lib/script-generator.ts  fetch("/api/reader/script")
+   ▼
+src/app/api/reader/script/route.ts
+   ▼
+src/services/ollama.ts  POST http://localhost:11434/api/chat
+   ▼
+Ollama (qwen2.5:3b)  → 原稿文字列
+   ▼
+後処理（前置き・コードフェンス・リテラル \n 除去）
+   ▼
+/reader「読み上げるテキスト」へ反映 → 司会モードへ
+```
+
+**プロンプト設計**（`src/services/ollama.ts`）
+
+- 厳守事項（最優先）：**ネタの各項目を漏れなく一つずつ反映**／**書いていない事実・固有名詞・人名・数字・日時を一切追加しない**／埋め草で水増ししない
+- system：TTS で読める話し言葉のみ／マークダウン装飾禁止／前置き禁止
+- `withSections` ON 時：話題ごとに `# 見出し` を置き、各見出し直後に本文 1〜2 文を必須化（裸見出し連続を防ぐ）
+- members の surface を列挙して氏名表記を統一（敬称は付与しても剥がしてもよい＝後段の `applyMembers` が処理）
+- `tone`：standard / friendly / formal で口調（語尾・丁寧さ）を切替。効果は語尾レベルで、構成や内容は変えない
+- サンプリング：`temperature 0.3` / `top_p 0.8`。司会原稿はネタへの忠実さを優先するため低温に設定（創作・項目脱落の抑制）
+
+**堅牢性**
+
+- Ollama 未起動 → `OllamaUnreachableError` → API は 503 + 案内メッセージ。画面に表示するだけで他機能は無傷
+- モデル未 pull → `OllamaApiError` → `ollama pull <model>` を促すメッセージ
+- 生成前に既存テキストがあれば上書き確認ダイアログ
+
+**モデル選択**
+
+パネルのドロップダウンでインストール済みモデルを選べる。`GET /api/reader/models` が `/api/tags` を取得して一覧と既定（`OLLAMA_MODEL`）を返す。選択値は生成リクエストの `model` として送られ、`OLLAMA_MODEL` を上書きする（その回限り）。Ollama 未接続時は「（Ollama 未接続）」表示で、生成は既定モデルにフォールバック。
+
+> 経験則：日本語の自然さは `qwen2.5` 系が安定。`mistral:7b` は英語寄りで、プレースホルダ幻覚・箇条書き混入が出やすい。
+
+**設定（環境変数、いずれも任意）**
+
+| 変数 | 既定 | 用途 |
+|------|------|------|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama の接続先 |
+| `OLLAMA_MODEL` | `qwen2.5:3b` | 既定モデル（UI で未選択時／フォールバック時）。日本語は qwen2.5 系が安定 |
+
 ## 9. 状態管理
 
 すべて React の `useState` で局所管理。グローバルストア（Redux 等）なし。
@@ -401,8 +461,24 @@ npm run dev
 
 ### 環境変数
 
-**なし**。voice-reader は外部サービスを呼ばないため `.env.local` 不要。
+原稿ジェネレーターを既定（`localhost:11434` / `qwen2.5:3b`）で使うなら **不要**。接続先やモデルを変えたい場合のみ `.env.local` に以下を設定（`.env.example` 参照）。
+
+```
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:3b
+```
+
+読み上げ・辞書・メンバー・テンプレ等、原稿生成以外の機能は引き続き外部サービス不要。
 （ivoice 本体側は Azure / Graph 等の環境変数を使うが voice-reader とは独立）
+
+### Ollama 前提
+
+原稿ジェネレーターのみ、ローカルに Ollama と日本語対応モデルが必要。
+
+```bash
+ollama pull qwen2.5:3b   # 日本語が得意で軽量。質を上げるなら qwen2.5:7b
+ollama serve             # （多くの環境では常駐済み）
+```
 
 ### 公開範囲
 
@@ -429,6 +505,7 @@ PLAN.md §7 と同じ。
 | Phase 2 | テンプレ保存 | ✅ 完了 |
 | Phase 3 | 司会モード（セクション分け） | ✅ 完了 |
 | 磨き | プレースホルダ・メンバー・整形 | ✅ 完了 |
+| 脱BOT | ローカル Ollama で原稿自動生成 | ✅ 完了（原稿ジェネレーター） |
 | Phase 4 | 朝会で Teams へ音声配信 | 未着手（要 Azure 等） |
 
 ## 13. ファイル別行数（参考）
