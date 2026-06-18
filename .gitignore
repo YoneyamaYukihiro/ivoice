@@ -9,6 +9,8 @@ dist
 .DS_Store
 coverage
 .vscode
+.vs
+.claude
 .idea
 next-env.d.ts
 tsconfig.tsbuildinfo
